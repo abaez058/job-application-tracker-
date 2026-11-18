@@ -17,7 +17,8 @@
                     ('compan',      'companies',    'Companies'),
                     ('job',         'jobs',         'Jobs'),
                     ('application', 'applications', 'Applications'),
-                    ('contact',     'contacts',     'Contacts')
+                    ('contact',     'contacts',     'Contacts'),
+                    ('job_match',   'job_match',    'Job Match')
                 ] %}
                 {% set current = request.endpoint or '' %}
                 {% for prefix, endpoint, label in nav_items %}

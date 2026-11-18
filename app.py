@@ -6,6 +6,7 @@ Every page in the app is set up in this file:
     /jobs            Jobs         - list / detail / add / edit / delete
     /applications    Applications - list / detail / add / edit / delete
     /contacts        Contacts     - list / detail / add / edit / delete
+    /job-match       Job Match    - rank jobs by skill match percentage
 """
 
 import json
@@ -641,6 +642,63 @@ def contact_delete(contact_id):
     execute("DELETE FROM contacts WHERE contact_id = %s", (contact_id,))
     flash(f"Contact \"{contact['contact_name']}\" deleted.", "success")
     return redirect(url_for("contacts"))
+
+
+# ---------------------------------------------------------------------------
+# Job Match
+# ---------------------------------------------------------------------------
+
+def calculate_match(user_skills, required_skills):
+    """How well do the user's skills cover one job's requirements?
+
+    Case doesn't matter, so "python" matches "Python". The percent is
+    matched / required, rounded, so 2 out of 3 skills comes out as 67%.
+    """
+    have = {skill.lower() for skill in user_skills}
+    matched = [skill for skill in required_skills if skill.lower() in have]
+    missing = [skill for skill in required_skills if skill.lower() not in have]
+    total = len(required_skills)
+    percent = round(len(matched) / total * 100) if total else 0
+    return {"matched": matched, "missing": missing, "total": total, "percent": percent}
+
+
+def rank_jobs(user_skills, job_rows):
+    """Score every job and put the best matches first.
+
+    Jobs with no skills listed can't be scored, so they're skipped.
+    Ties go to the job with more matched skills, then alphabetical order.
+    """
+    results = []
+    for job in job_rows:
+        required = parse_skills(",".join(job_skills(job)))  # clean up the stored list the same way
+        if not required:
+            continue
+        match = calculate_match(user_skills, required)
+        match["job"] = job
+        results.append(match)
+    results.sort(key=lambda m: (-m["percent"], -len(m["matched"]), m["job"]["job_title"]))
+    return results
+
+
+@app.route("/job-match", methods=["GET", "POST"])
+def job_match():
+    skills_text = request.form.get("skills", "")
+    user_skills = parse_skills(skills_text)
+    matches = []
+    no_match_count = 0
+    error = None
+
+    if request.method == "POST":
+        if not user_skills:
+            error = "Enter at least one skill, separated by commas."
+        else:
+            ranked = rank_jobs(user_skills, query_all(JOB_SELECT))
+            matches = [m for m in ranked if m["percent"] > 0]
+            no_match_count = len(ranked) - len(matches)
+
+    return render_template("job_match.html", skills_text=skills_text, user_skills=user_skills,
+                           matches=matches, no_match_count=no_match_count, error=error,
+                           searched=request.method == "POST" and not error)
 
 
 # ---------------------------------------------------------------------------
