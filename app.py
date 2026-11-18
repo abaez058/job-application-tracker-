@@ -1,14 +1,3 @@
-"""Job Application Tracker - the main Flask app.
-
-Every page in the app is set up in this file:
-    /                Dashboard (statistics overview)
-    /companies       Companies    - list / detail / add / edit / delete
-    /jobs            Jobs         - list / detail / add / edit / delete
-    /applications    Applications - list / detail / add / edit / delete
-    /contacts        Contacts     - list / detail / add / edit / delete
-    /job-match       Job Match    - rank jobs by skill match percentage
-"""
-
 import json
 import os
 import re
@@ -20,8 +9,6 @@ from flask import Flask, abort, flash, redirect, render_template, request, url_f
 from database import execute, query_all, query_one
 
 app = Flask(__name__)
-# Flask needs a secret key to show flash messages (the green "saved" banners).
-# This one is fine for running locally; set SECRET_KEY if the app ever goes online.
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-secret-key")
 
 JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship"]
@@ -31,30 +18,22 @@ INTERVIEW_TYPES = ["Phone", "Video", "Technical", "On-site", "Other"]
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-# ---------------------------------------------------------------------------
-# Helpers that all the add/edit forms share
-# ---------------------------------------------------------------------------
-
 def clean(form, field):
-    """Grab a form field, trim the spaces, and turn an empty box into None."""
     value = form.get(field, "").strip()
     return value or None
 
 
 def check_length(errors, label, value, max_length):
-    """Catch text that's too long for its database column before MySQL does."""
     if value and len(value) > max_length:
         errors.append(f"{label} must be {max_length} characters or fewer.")
 
 
 def check_url(errors, label, value):
-    """Links have to start with http:// or https:// so they actually open."""
     if value and not value.lower().startswith(("http://", "https://")):
         errors.append(f"{label} must start with http:// or https://.")
 
 
 def parse_date(errors, label, value, required=False):
-    """Turn '2026-11-01' into a real date. A bad (or missing required) date adds an error."""
     if not value:
         if required:
             errors.append(f"{label} is required.")
@@ -67,7 +46,6 @@ def parse_date(errors, label, value, required=False):
 
 
 def parse_salary(errors, label, value):
-    """Salaries are whole numbers only: no $ signs, commas or decimals."""
     if not value:
         return None
     if not value.isdigit():
@@ -77,7 +55,6 @@ def parse_salary(errors, label, value):
 
 
 def parse_json(value, default):
-    """MySQL can hand JSON columns back as text or bytes, so normalize them here."""
     if value is None:
         return default
     if isinstance(value, (bytes, bytearray)):
@@ -91,14 +68,10 @@ def parse_json(value, default):
 
 
 def parse_skills(text):
-    """Turn 'Python, SQL,  flask' into ['Python', 'SQL', 'flask'].
-
-    Empty pieces and repeats are skipped, so 'python, Python' only counts once.
-    """
     skills = []
     seen = set()
     for piece in (text or "").split(","):
-        skill = " ".join(piece.split())  # 'REST   APIs' becomes 'REST APIs'
+        skill = " ".join(piece.split())
         if skill and skill.lower() not in seen:
             seen.add(skill.lower())
             skills.append(skill)
@@ -106,9 +79,8 @@ def parse_skills(text):
 
 
 def job_skills(job):
-    """Pull the list of skills out of a job's requirements column."""
     requirements = parse_json(job.get("requirements"), [])
-    if isinstance(requirements, dict):  # in case it was saved as {"skills": [...]}
+    if isinstance(requirements, dict):
         requirements = requirements.get("skills", [])
     if not isinstance(requirements, list):
         return []
@@ -121,7 +93,6 @@ def company_exists(company_id):
 
 
 def get_or_404(sql, record_id):
-    """Look up one row by id, or show the "not found" page if it's gone."""
     row = query_one(sql, (record_id,))
     if row is None:
         abort(404)
@@ -140,10 +111,6 @@ def job_choices():
     )
 
 
-# ---------------------------------------------------------------------------
-# Dashboard
-# ---------------------------------------------------------------------------
-
 @app.route("/")
 def dashboard():
     counts = query_one(
@@ -153,8 +120,6 @@ def dashboard():
                   (SELECT COUNT(*) FROM contacts)     AS contacts"""
     )
 
-    # Count applications per status. Every status starts at 0, so the dashboard
-    # still shows a row for a status nobody has reached yet.
     status_counts = {status: 0 for status in STATUSES}
     for row in query_all("SELECT status, COUNT(*) AS total FROM applications GROUP BY status"):
         status_counts[row["status"]] = row["total"]
@@ -181,12 +146,7 @@ def dashboard():
                            status_counts=status_counts, recent=recent)
 
 
-# ---------------------------------------------------------------------------
-# Companies
-# ---------------------------------------------------------------------------
-
 def validate_company(form):
-    """Check the company form. Gives back the cleaned-up values and a list of problems."""
     errors = []
     data = {field: clean(form, field)
             for field in ("company_name", "industry", "website", "city", "state", "notes")}
@@ -265,23 +225,16 @@ def company_edit(company_id):
 @app.route("/companies/<int:company_id>/delete", methods=["POST"])
 def company_delete(company_id):
     company = get_or_404("SELECT * FROM companies WHERE company_id = %s", company_id)
-    # The foreign keys cascade, so this also removes the company's jobs, their
-    # applications, and its contacts. The confirm box warns about that first.
     execute("DELETE FROM companies WHERE company_id = %s", (company_id,))
     flash(f"Company \"{company['company_name']}\" deleted.", "success")
     return redirect(url_for("companies"))
 
 
-# ---------------------------------------------------------------------------
-# Jobs
-# ---------------------------------------------------------------------------
-
 JOB_SELECT = """SELECT j.*, c.company_name
                 FROM jobs j JOIN companies c ON c.company_id = j.company_id"""
 
 
-def validate_job(form):
-    """Check the job form. Gives back the cleaned-up values and a list of problems."""
+def validate_job(form, need_company=True):
     errors = []
     data = {
         "job_title": clean(form, "job_title"),
@@ -290,7 +243,9 @@ def validate_job(form):
     }
 
     company_id = clean(form, "company_id")
-    if not company_id or not company_id.isdigit() or not company_exists(int(company_id)):
+    if not need_company:
+        data["company_id"] = None
+    elif not company_id or not company_id.isdigit() or not company_exists(int(company_id)):
         errors.append("Please choose a company.")
         data["company_id"] = None
     else:
@@ -313,7 +268,6 @@ def validate_job(form):
     check_url(errors, "Job URL", data["job_url"])
     data["date_posted"] = parse_date(errors, "Date posted", clean(form, "date_posted"))
 
-    # People type skills as 'Python, SQL', but they're stored as a JSON list.
     skills = parse_skills(form.get("requirements_text"))
     data["requirements"] = json.dumps(skills) if skills else None
     return data, errors
@@ -352,7 +306,6 @@ def job_add():
             return redirect(url_for("jobs"))
         form = request.form
     else:
-        # Coming from a company page? Pre-select that company in the dropdown.
         form = {"company_id": request.args.get("company_id", "")}
         errors = []
     return render_template("job_form.html", form=form, errors=errors, job=None,
@@ -388,15 +341,10 @@ def job_edit(job_id):
 @app.route("/jobs/<int:job_id>/delete", methods=["POST"])
 def job_delete(job_id):
     job = get_or_404(JOB_SELECT + " WHERE j.job_id = %s", job_id)
-    # This cascades too: any applications for this job go with it.
     execute("DELETE FROM jobs WHERE job_id = %s", (job_id,))
     flash(f"Job \"{job['job_title']}\" deleted.", "success")
     return redirect(url_for("jobs"))
 
-
-# ---------------------------------------------------------------------------
-# Applications
-# ---------------------------------------------------------------------------
 
 APPLICATION_SELECT = """SELECT a.*, j.job_title, c.company_id, c.company_name
                         FROM applications a
@@ -404,8 +352,7 @@ APPLICATION_SELECT = """SELECT a.*, j.job_title, c.company_id, c.company_name
                         JOIN companies c ON c.company_id = j.company_id"""
 
 
-def validate_application(form):
-    """Check the application form. Gives back the cleaned-up values and a list of problems."""
+def validate_application(form, need_job=True):
     errors = []
     data = {
         "status": clean(form, "status"),
@@ -416,7 +363,9 @@ def validate_application(form):
     job_id = clean(form, "job_id")
     job_found = job_id and job_id.isdigit() and query_one(
         "SELECT job_id FROM jobs WHERE job_id = %s", (int(job_id),))
-    if not job_found:
+    if not need_job:
+        data["job_id"] = None
+    elif not job_found:
         errors.append("Please choose a job.")
         data["job_id"] = None
     else:
@@ -431,7 +380,6 @@ def validate_application(form):
         errors.append("Please choose a status.")
     check_length(errors, "Resume version", data["resume_version"], 50)
 
-    # The four interview boxes get bundled into one JSON object (interview_data).
     interview = {}
     interview_date = parse_date(errors, "Interview date", clean(form, "interview_date"))
     if interview_date:
@@ -451,7 +399,6 @@ def validate_application(form):
 
 
 def application_form_values(application):
-    """Unpack the interview JSON back into separate boxes for the edit form."""
     form = dict(application)
     interview = parse_json(application.get("interview_data"), {})
     if not isinstance(interview, dict):
@@ -485,28 +432,91 @@ def application_detail(application_id):
     return render_template("application_detail.html", application=application, interview=interview)
 
 
+def find_or_create_company(data):
+    existing = query_one(
+        "SELECT company_id FROM companies WHERE LOWER(company_name) = LOWER(%s)",
+        (data["company_name"],))
+    if existing:
+        return existing["company_id"]
+    return execute(
+        """INSERT INTO companies (company_name, industry, website, city, state, notes)
+           VALUES (%s, %s, %s, %s, %s, %s)""",
+        (data["company_name"], data["industry"], data["website"],
+         data["city"], data["state"], data["notes"]),
+    )
+
+
+def contact_fields(form):
+    return {
+        "contact_name": form.get("contact_name", ""),
+        "title": form.get("contact_title", ""),
+        "email": form.get("contact_email", ""),
+        "phone": form.get("contact_phone", ""),
+        "linkedin_url": form.get("contact_linkedin_url", ""),
+        "notes": form.get("contact_notes", ""),
+    }
+
+
 @app.route("/applications/add", methods=["GET", "POST"])
 def application_add():
+    job_id = request.values.get("job_id", "")
+    existing_job = None
+    if job_id.isdigit():
+        existing_job = query_one(JOB_SELECT + " WHERE j.job_id = %s", (int(job_id),))
+
     if request.method == "POST":
-        data, errors = validate_application(request.form)
+        include_contact = request.form.get("include_contact") == "1"
+        app_data, errors = validate_application(request.form, need_job=existing_job is not None)
+        if existing_job is None:
+            company_data, company_errors = validate_company(request.form)
+            job_data, job_errors = validate_job(request.form, need_company=False)
+            errors = company_errors + job_errors + errors
+        if include_contact:
+            contact_data, contact_errors = validate_contact(contact_fields(request.form),
+                                                            need_company=False)
+            errors = errors + contact_errors
         if not errors:
+            if existing_job is None:
+                company_id = find_or_create_company(company_data)
+                app_data["job_id"] = execute(
+                    """INSERT INTO jobs (company_id, job_title, job_type, salary_min, salary_max,
+                                         job_url, date_posted, requirements)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (company_id, job_data["job_title"], job_data["job_type"],
+                     job_data["salary_min"], job_data["salary_max"], job_data["job_url"],
+                     job_data["date_posted"], job_data["requirements"]),
+                )
+            else:
+                company_id = existing_job["company_id"]
             execute(
                 """INSERT INTO applications (job_id, application_date, status, resume_version,
                                              cover_letter_sent, interview_data)
                    VALUES (%s, %s, %s, %s, %s, %s)""",
-                (data["job_id"], data["application_date"], data["status"],
-                 data["resume_version"], data["cover_letter_sent"], data["interview_data"]),
+                (app_data["job_id"], app_data["application_date"], app_data["status"],
+                 app_data["resume_version"], app_data["cover_letter_sent"],
+                 app_data["interview_data"]),
             )
-            flash("Application added.", "success")
+            if include_contact:
+                execute(
+                    """INSERT INTO contacts (company_id, contact_name, title, email, phone,
+                                             linkedin_url, notes)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                    (company_id, contact_data["contact_name"], contact_data["title"],
+                     contact_data["email"], contact_data["phone"],
+                     contact_data["linkedin_url"], contact_data["notes"]),
+                )
+                flash("Application and contact added.", "success")
+            else:
+                flash("Application added.", "success")
             return redirect(url_for("applications"))
         form = request.form
     else:
-        form = {"job_id": request.args.get("job_id", ""),
-                "application_date": date.today().isoformat(),
-                "status": "Applied"}
+        form = {"application_date": date.today().isoformat(), "status": "Applied"}
         errors = []
     return render_template("application_form.html", form=form, errors=errors, application=None,
-                           jobs=job_choices(), statuses=STATUSES,
+                           existing_job=existing_job,
+                           company_names=[c["company_name"] for c in company_choices()],
+                           job_types=JOB_TYPES, statuses=STATUSES,
                            interview_types=INTERVIEW_TYPES, today=date.today().isoformat())
 
 
@@ -543,22 +553,19 @@ def application_delete(application_id):
     return redirect(url_for("applications"))
 
 
-# ---------------------------------------------------------------------------
-# Contacts
-# ---------------------------------------------------------------------------
-
 CONTACT_SELECT = """SELECT t.*, c.company_name
                     FROM contacts t JOIN companies c ON c.company_id = t.company_id"""
 
 
-def validate_contact(form):
-    """Check the contact form. Gives back the cleaned-up values and a list of problems."""
+def validate_contact(form, need_company=True):
     errors = []
     data = {field: clean(form, field)
             for field in ("contact_name", "title", "email", "phone", "linkedin_url", "notes")}
 
     company_id = clean(form, "company_id")
-    if not company_id or not company_id.isdigit() or not company_exists(int(company_id)):
+    if not need_company:
+        data["company_id"] = None
+    elif not company_id or not company_id.isdigit() or not company_exists(int(company_id)):
         errors.append("Please choose a company.")
         data["company_id"] = None
     else:
@@ -644,16 +651,7 @@ def contact_delete(contact_id):
     return redirect(url_for("contacts"))
 
 
-# ---------------------------------------------------------------------------
-# Job Match
-# ---------------------------------------------------------------------------
-
 def calculate_match(user_skills, required_skills):
-    """How well do the user's skills cover one job's requirements?
-
-    Case doesn't matter, so "python" matches "Python". The percent is
-    matched / required, rounded, so 2 out of 3 skills comes out as 67%.
-    """
     have = {skill.lower() for skill in user_skills}
     matched = [skill for skill in required_skills if skill.lower() in have]
     missing = [skill for skill in required_skills if skill.lower() not in have]
@@ -663,14 +661,9 @@ def calculate_match(user_skills, required_skills):
 
 
 def rank_jobs(user_skills, job_rows):
-    """Score every job and put the best matches first.
-
-    Jobs with no skills listed can't be scored, so they're skipped.
-    Ties go to the job with more matched skills, then alphabetical order.
-    """
     results = []
     for job in job_rows:
-        required = parse_skills(",".join(job_skills(job)))  # clean up the stored list the same way
+        required = parse_skills(",".join(job_skills(job)))
         if not required:
             continue
         match = calculate_match(user_skills, required)
@@ -700,10 +693,6 @@ def job_match():
                            matches=matches, no_match_count=no_match_count, error=error,
                            searched=request.method == "POST" and not error)
 
-
-# ---------------------------------------------------------------------------
-# Error pages
-# ---------------------------------------------------------------------------
 
 @app.errorhandler(404)
 def not_found(error):

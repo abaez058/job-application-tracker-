@@ -4,13 +4,8 @@
 <a class="back" href="{{ url_for('applications') }}">&larr; All applications</a>
 <h1>{{ 'Edit application' if application else 'Add application' }}</h1>
 
-{% if not jobs %}
-<div class="card empty">
-    <p>An application has to be for a job. Add a job first.</p>
-    <a class="btn btn-primary" href="{{ url_for('job_add') }}">Add a job</a>
-</div>
-{% else %}
 <form class="card form" method="post" novalidate>
+    {% if application %}
     <div class="field">
         <label for="job_id">Job <span class="req">*</span></label>
         <select id="job_id" name="job_id" required>
@@ -20,6 +15,126 @@
             {% endfor %}
         </select>
     </div>
+    {% elif existing_job %}
+    <input type="hidden" name="job_id" value="{{ existing_job.job_id }}">
+    <p class="applying-for">Applying for <strong>{{ existing_job.job_title }}</strong> at {{ existing_job.company_name }}</p>
+    {% else %}
+    <fieldset>
+        <legend>Company</legend>
+        <div class="field-row">
+            <div class="field">
+                <label for="company_name">Company name <span class="req">*</span></label>
+                <input id="company_name" name="company_name" maxlength="100" list="company-names" autocomplete="off" value="{{ form.company_name or '' }}">
+                <datalist id="company-names">
+                    {% for name in company_names %}<option value="{{ name }}">{% endfor %}
+                </datalist>
+                <p class="hint">Pick one you've saved before, or type a new one.</p>
+            </div>
+            <div class="field">
+                <label for="industry">Industry</label>
+                <input id="industry" name="industry" maxlength="50" value="{{ form.industry or '' }}">
+            </div>
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label for="website">Website</label>
+                <input id="website" name="website" type="url" maxlength="200" placeholder="https://" value="{{ form.website or '' }}">
+            </div>
+            <div class="field">
+                <label for="city">City</label>
+                <input id="city" name="city" maxlength="50" value="{{ form.city or '' }}">
+            </div>
+            <div class="field">
+                <label for="state">State</label>
+                <input id="state" name="state" maxlength="50" value="{{ form.state or '' }}">
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Job</legend>
+        <div class="field-row">
+            <div class="field">
+                <label for="job_title">Job title <span class="req">*</span></label>
+                <input id="job_title" name="job_title" maxlength="100" value="{{ form.job_title or '' }}">
+            </div>
+            <div class="field">
+                <label for="job_type">Job type</label>
+                <select id="job_type" name="job_type">
+                    <option value="">Not specified</option>
+                    {% for job_type in job_types %}
+                    <option value="{{ job_type }}" {% if form.job_type == job_type %}selected{% endif %}>{{ job_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label for="salary_min">Minimum salary ($ per year)</label>
+                <input id="salary_min" name="salary_min" type="number" min="0" step="1" value="{{ form.salary_min or '' }}">
+            </div>
+            <div class="field">
+                <label for="salary_max">Maximum salary ($ per year)</label>
+                <input id="salary_max" name="salary_max" type="number" min="0" step="1" value="{{ form.salary_max or '' }}">
+            </div>
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label for="job_url">Job URL</label>
+                <input id="job_url" name="job_url" type="url" maxlength="300" placeholder="https://" value="{{ form.job_url or '' }}">
+            </div>
+            <div class="field">
+                <label for="date_posted">Date posted</label>
+                <input id="date_posted" name="date_posted" type="date" value="{{ form.date_posted or '' }}">
+            </div>
+        </div>
+        <div class="field">
+            <label for="requirements_text">Required skills</label>
+            <input id="requirements_text" name="requirements_text" placeholder="Python, SQL, Flask" value="{{ form.requirements_text or '' }}">
+            <p class="hint">Separate skills with commas. These are used by the Job Match page.</p>
+        </div>
+    </fieldset>
+
+    {% set show_contact = form.include_contact == '1' %}
+    <input type="hidden" name="include_contact" id="include_contact" value="{{ '1' if show_contact else '0' }}">
+    <div class="add-section" id="add-contact-row" {% if show_contact %}hidden{% endif %}>
+        <button type="button" class="btn btn-primary" id="add-contact-btn">+ Add contact</button>
+    </div>
+    <fieldset id="contact-section" {% if not show_contact %}hidden{% endif %}>
+        <legend>Contact</legend>
+        <div class="field-row">
+            <div class="field">
+                <label for="contact_name">Name <span class="req">*</span></label>
+                <input id="contact_name" name="contact_name" maxlength="100" value="{{ form.contact_name or '' }}">
+            </div>
+            <div class="field">
+                <label for="contact_title">Job title</label>
+                <input id="contact_title" name="contact_title" maxlength="100" value="{{ form.contact_title or '' }}">
+            </div>
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label for="contact_email">Email</label>
+                <input id="contact_email" name="contact_email" type="email" maxlength="100" value="{{ form.contact_email or '' }}">
+            </div>
+            <div class="field">
+                <label for="contact_phone">Phone</label>
+                <input id="contact_phone" name="contact_phone" type="tel" maxlength="20" value="{{ form.contact_phone or '' }}">
+            </div>
+        </div>
+        <div class="field">
+            <label for="contact_linkedin_url">LinkedIn URL</label>
+            <input id="contact_linkedin_url" name="contact_linkedin_url" type="url" maxlength="200" placeholder="https://www.linkedin.com/in/..." value="{{ form.contact_linkedin_url or '' }}">
+        </div>
+        <div class="field">
+            <label for="contact_notes">Notes</label>
+            <textarea id="contact_notes" name="contact_notes" rows="3">{{ form.contact_notes or '' }}</textarea>
+        </div>
+        <button type="button" class="btn btn-small btn-remove" id="remove-contact-btn">Remove contact</button>
+    </fieldset>
+
+    <h2 class="form-section">Application</h2>
+    {% endif %}
     <div class="field-row">
         <div class="field">
             <label for="application_date">Application date <span class="req">*</span></label>
@@ -79,5 +194,26 @@
         <a class="btn" href="{{ url_for('applications') }}">Cancel</a>
     </div>
 </form>
-{% endif %}
+
+<script>
+    const addContactBtn = document.getElementById('add-contact-btn');
+    if (addContactBtn) {
+        const contactSection = document.getElementById('contact-section');
+        const addContactRow = document.getElementById('add-contact-row');
+        const includeContact = document.getElementById('include_contact');
+
+        addContactBtn.addEventListener('click', function () {
+            contactSection.hidden = false;
+            addContactRow.hidden = true;
+            includeContact.value = '1';
+            document.getElementById('contact_name').focus();
+        });
+
+        document.getElementById('remove-contact-btn').addEventListener('click', function () {
+            contactSection.hidden = true;
+            addContactRow.hidden = false;
+            includeContact.value = '0';
+        });
+    }
+</script>
 {% endblock %}
