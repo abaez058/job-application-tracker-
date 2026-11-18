@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Applications{% endblock %}
+{% block content %}
+<div class="page-head">
+    <h1>Applications</h1>
+    <a class="btn btn-primary" href="{{ url_for('application_add') }}">+ Add application</a>
+</div>
+
+<nav class="filters" aria-label="Filter by status">
+    <a href="{{ url_for('applications') }}" {% if not status_filter %}class="active"{% endif %}>All</a>
+    {% for status in statuses %}
+    <a href="{{ url_for('applications', status=status) }}" {% if status_filter == status %}class="active"{% endif %}>{{ status }}</a>
+    {% endfor %}
+</nav>
+
+{% if applications %}
+<div class="card table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Job</th><th>Applied</th><th>Status</th><th>Resume</th><th>Cover letter</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for application in applications %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('application_detail', application_id=application.application_id) }}">{{ application.job_title }}</a>
+                    <div class="muted">{{ application.company_name }}</div>
+                </td>
+                <td class="nowrap">{{ application.application_date }}</td>
+                <td><span class="badge status-{{ application.status | lower }}">{{ application.status }}</span></td>
+                <td>{{ application.resume_version or '-' }}</td>
+                <td>{{ 'Yes' if application.cover_letter_sent else 'No' }}</td>
+                <td class="actions">
+                    <a class="btn btn-small" href="{{ url_for('application_edit', application_id=application.application_id) }}">Edit</a>
+                    <form method="post" action="{{ url_for('application_delete', application_id=application.application_id) }}"
+                          data-confirm="Delete your application for {{ application.job_title }} at {{ application.company_name }}?">
+                        <button class="btn btn-small btn-danger" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif status_filter %}
+<div class="card empty">
+    <p>No applications with the status "{{ status_filter }}".</p>
+    <a class="btn" href="{{ url_for('applications') }}">Show all applications</a>
+</div>
+{% else %}
+<div class="card empty">
+    <p>No applications yet.</p>
+    <a class="btn btn-primary" href="{{ url_for('application_add') }}">Add your first application</a>
+</div>
+{% endif %}
+{% endblock %}

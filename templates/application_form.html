@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit application' if application else 'Add application' }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('applications') }}">&larr; All applications</a>
+<h1>{{ 'Edit application' if application else 'Add application' }}</h1>
+
+{% if not jobs %}
+<div class="card empty">
+    <p>An application has to be for a job. Add a job first.</p>
+    <a class="btn btn-primary" href="{{ url_for('job_add') }}">Add a job</a>
+</div>
+{% else %}
+<form class="card form" method="post" novalidate>
+    <div class="field">
+        <label for="job_id">Job <span class="req">*</span></label>
+        <select id="job_id" name="job_id" required>
+            <option value="">Choose a job</option>
+            {% for job in jobs %}
+            <option value="{{ job.job_id }}" {% if form.job_id | string == job.job_id | string %}selected{% endif %}>{{ job.job_title }} - {{ job.company_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="field-row">
+        <div class="field">
+            <label for="application_date">Application date <span class="req">*</span></label>
+            <input id="application_date" name="application_date" type="date" max="{{ today }}" required value="{{ form.application_date or '' }}">
+        </div>
+        <div class="field">
+            <label for="status">Status <span class="req">*</span></label>
+            <select id="status" name="status" required>
+                {% for status in statuses %}
+                <option value="{{ status }}" {% if form.status == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="field-row">
+        <div class="field">
+            <label for="resume_version">Resume version</label>
+            <input id="resume_version" name="resume_version" maxlength="50" placeholder="v3-backend" value="{{ form.resume_version or '' }}">
+        </div>
+        <div class="field field-check">
+            <label>
+                <input type="checkbox" name="cover_letter_sent" value="1" {% if form.cover_letter_sent %}checked{% endif %}>
+                Cover letter sent
+            </label>
+        </div>
+    </div>
+
+    <fieldset>
+        <legend>Interview details (optional)</legend>
+        <div class="field-row">
+            <div class="field">
+                <label for="interview_date">Interview date</label>
+                <input id="interview_date" name="interview_date" type="date" value="{{ form.interview_date or '' }}">
+            </div>
+            <div class="field">
+                <label for="interview_type">Interview type</label>
+                <select id="interview_type" name="interview_type">
+                    <option value="">Not specified</option>
+                    {% for interview_type in interview_types %}
+                    <option value="{{ interview_type }}" {% if form.interview_type == interview_type %}selected{% endif %}>{{ interview_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="field">
+            <label for="interviewer">Interviewer</label>
+            <input id="interviewer" name="interviewer" value="{{ form.interviewer or '' }}">
+        </div>
+        <div class="field">
+            <label for="interview_notes">Interview notes</label>
+            <textarea id="interview_notes" name="interview_notes" rows="3">{{ form.interview_notes or '' }}</textarea>
+        </div>
+    </fieldset>
+
+    <div class="form-actions">
+        <button class="btn btn-primary" type="submit">{{ 'Save changes' if application else 'Add application' }}</button>
+        <a class="btn" href="{{ url_for('applications') }}">Cancel</a>
+    </div>
+</form>
+{% endif %}
+{% endblock %}

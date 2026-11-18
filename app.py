@@ -4,6 +4,7 @@ Every page in the app is set up in this file:
     /                Dashboard (statistics overview)
     /companies       Companies    - list / detail / add / edit / delete
     /jobs            Jobs         - list / detail / add / edit / delete
+    /applications    Applications - list / detail / add / edit / delete
     /contacts        Contacts     - list / detail / add / edit / delete
 """
 
@@ -150,7 +151,33 @@ def dashboard():
                   (SELECT COUNT(*) FROM applications) AS applications,
                   (SELECT COUNT(*) FROM contacts)     AS contacts"""
     )
-    return render_template("dashboard.html", counts=counts)
+
+    # Count applications per status. Every status starts at 0, so the dashboard
+    # still shows a row for a status nobody has reached yet.
+    status_counts = {status: 0 for status in STATUSES}
+    for row in query_all("SELECT status, COUNT(*) AS total FROM applications GROUP BY status"):
+        status_counts[row["status"]] = row["total"]
+
+    total = counts["applications"]
+    responded = total - status_counts["Applied"]
+    stats = {
+        "active": status_counts["Applied"] + status_counts["Screening"] + status_counts["Interview"],
+        "offers": status_counts["Offer"],
+        "response_rate": round(responded / total * 100) if total else 0,
+    }
+
+    recent = query_all(
+        """SELECT a.application_id, a.application_date, a.status,
+                  j.job_title, c.company_name
+           FROM applications a
+           JOIN jobs j      ON j.job_id = a.job_id
+           JOIN companies c ON c.company_id = j.company_id
+           ORDER BY a.application_date DESC, a.application_id DESC
+           LIMIT 5"""
+    )
+
+    return render_template("dashboard.html", counts=counts, stats=stats,
+                           status_counts=status_counts, recent=recent)
 
 
 # ---------------------------------------------------------------------------
@@ -364,6 +391,155 @@ def job_delete(job_id):
     execute("DELETE FROM jobs WHERE job_id = %s", (job_id,))
     flash(f"Job \"{job['job_title']}\" deleted.", "success")
     return redirect(url_for("jobs"))
+
+
+# ---------------------------------------------------------------------------
+# Applications
+# ---------------------------------------------------------------------------
+
+APPLICATION_SELECT = """SELECT a.*, j.job_title, c.company_id, c.company_name
+                        FROM applications a
+                        JOIN jobs j      ON j.job_id = a.job_id
+                        JOIN companies c ON c.company_id = j.company_id"""
+
+
+def validate_application(form):
+    """Check the application form. Gives back the cleaned-up values and a list of problems."""
+    errors = []
+    data = {
+        "status": clean(form, "status"),
+        "resume_version": clean(form, "resume_version"),
+        "cover_letter_sent": 1 if form.get("cover_letter_sent") else 0,
+    }
+
+    job_id = clean(form, "job_id")
+    job_found = job_id and job_id.isdigit() and query_one(
+        "SELECT job_id FROM jobs WHERE job_id = %s", (int(job_id),))
+    if not job_found:
+        errors.append("Please choose a job.")
+        data["job_id"] = None
+    else:
+        data["job_id"] = int(job_id)
+
+    data["application_date"] = parse_date(
+        errors, "Application date", clean(form, "application_date"), required=True)
+    if data["application_date"] and data["application_date"] > date.today():
+        errors.append("Application date cannot be in the future.")
+
+    if data["status"] not in STATUSES:
+        errors.append("Please choose a status.")
+    check_length(errors, "Resume version", data["resume_version"], 50)
+
+    # The four interview boxes get bundled into one JSON object (interview_data).
+    interview = {}
+    interview_date = parse_date(errors, "Interview date", clean(form, "interview_date"))
+    if interview_date:
+        interview["date"] = interview_date.isoformat()
+    interview_type = clean(form, "interview_type")
+    if interview_type:
+        if interview_type in INTERVIEW_TYPES:
+            interview["type"] = interview_type
+        else:
+            errors.append("Interview type is not one of the allowed options.")
+    for key, field in (("interviewer", "interviewer"), ("notes", "interview_notes")):
+        value = clean(form, field)
+        if value:
+            interview[key] = value
+    data["interview_data"] = json.dumps(interview) if interview else None
+    return data, errors
+
+
+def application_form_values(application):
+    """Unpack the interview JSON back into separate boxes for the edit form."""
+    form = dict(application)
+    interview = parse_json(application.get("interview_data"), {})
+    if not isinstance(interview, dict):
+        interview = {}
+    form["interview_date"] = interview.get("date", "")
+    form["interview_type"] = interview.get("type", "")
+    form["interviewer"] = interview.get("interviewer", "")
+    form["interview_notes"] = interview.get("notes", "")
+    return form
+
+
+@app.route("/applications")
+def applications():
+    status_filter = request.args.get("status", "")
+    sql = APPLICATION_SELECT
+    params = ()
+    if status_filter in STATUSES:
+        sql += " WHERE a.status = %s"
+        params = (status_filter,)
+    rows = query_all(sql + " ORDER BY a.application_date DESC, a.application_id DESC", params)
+    return render_template("applications.html", applications=rows,
+                           statuses=STATUSES, status_filter=status_filter)
+
+
+@app.route("/applications/<int:application_id>")
+def application_detail(application_id):
+    application = get_or_404(APPLICATION_SELECT + " WHERE a.application_id = %s", application_id)
+    interview = parse_json(application.get("interview_data"), {})
+    if not isinstance(interview, dict):
+        interview = {}
+    return render_template("application_detail.html", application=application, interview=interview)
+
+
+@app.route("/applications/add", methods=["GET", "POST"])
+def application_add():
+    if request.method == "POST":
+        data, errors = validate_application(request.form)
+        if not errors:
+            execute(
+                """INSERT INTO applications (job_id, application_date, status, resume_version,
+                                             cover_letter_sent, interview_data)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (data["job_id"], data["application_date"], data["status"],
+                 data["resume_version"], data["cover_letter_sent"], data["interview_data"]),
+            )
+            flash("Application added.", "success")
+            return redirect(url_for("applications"))
+        form = request.form
+    else:
+        form = {"job_id": request.args.get("job_id", ""),
+                "application_date": date.today().isoformat(),
+                "status": "Applied"}
+        errors = []
+    return render_template("application_form.html", form=form, errors=errors, application=None,
+                           jobs=job_choices(), statuses=STATUSES,
+                           interview_types=INTERVIEW_TYPES, today=date.today().isoformat())
+
+
+@app.route("/applications/<int:application_id>/edit", methods=["GET", "POST"])
+def application_edit(application_id):
+    application = get_or_404(APPLICATION_SELECT + " WHERE a.application_id = %s", application_id)
+    if request.method == "POST":
+        data, errors = validate_application(request.form)
+        if not errors:
+            execute(
+                """UPDATE applications
+                   SET job_id = %s, application_date = %s, status = %s, resume_version = %s,
+                       cover_letter_sent = %s, interview_data = %s
+                   WHERE application_id = %s""",
+                (data["job_id"], data["application_date"], data["status"], data["resume_version"],
+                 data["cover_letter_sent"], data["interview_data"], application_id),
+            )
+            flash("Application updated.", "success")
+            return redirect(url_for("application_detail", application_id=application_id))
+        form = request.form
+    else:
+        form = application_form_values(application)
+        errors = []
+    return render_template("application_form.html", form=form, errors=errors,
+                           application=application, jobs=job_choices(), statuses=STATUSES,
+                           interview_types=INTERVIEW_TYPES, today=date.today().isoformat())
+
+
+@app.route("/applications/<int:application_id>/delete", methods=["POST"])
+def application_delete(application_id):
+    get_or_404("SELECT * FROM applications WHERE application_id = %s", application_id)
+    execute("DELETE FROM applications WHERE application_id = %s", (application_id,))
+    flash("Application deleted.", "success")
+    return redirect(url_for("applications"))
 
 
 # ---------------------------------------------------------------------------

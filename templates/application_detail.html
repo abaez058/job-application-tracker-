@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Application - {{ application.job_title }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('applications') }}">&larr; All applications</a>
+<div class="page-head">
+    <div>
+        <h1>{{ application.job_title }}</h1>
+        <p class="subtitle">at <a href="{{ url_for('company_detail', company_id=application.company_id) }}">{{ application.company_name }}</a></p>
+    </div>
+    <div class="actions">
+        <a class="btn" href="{{ url_for('application_edit', application_id=application.application_id) }}">Edit</a>
+        <form method="post" action="{{ url_for('application_delete', application_id=application.application_id) }}"
+              data-confirm="Delete your application for {{ application.job_title }} at {{ application.company_name }}?">
+            <button class="btn btn-danger" type="submit">Delete</button>
+        </form>
+    </div>
+</div>
+
+<div class="two-col">
+    <section class="card">
+        <h2>Application</h2>
+        <dl class="details">
+            <dt>Status</dt><dd><span class="badge status-{{ application.status | lower }}">{{ application.status }}</span></dd>
+            <dt>Applied on</dt><dd>{{ application.application_date }}</dd>
+            <dt>Resume version</dt><dd>{{ application.resume_version or '-' }}</dd>
+            <dt>Cover letter sent</dt><dd>{{ 'Yes' if application.cover_letter_sent else 'No' }}</dd>
+            <dt>Job</dt><dd><a href="{{ url_for('job_detail', job_id=application.job_id) }}">View job posting details</a></dd>
+        </dl>
+    </section>
+
+    <section class="card">
+        <h2>Interview</h2>
+        {% if interview %}
+        <dl class="details">
+            <dt>Date</dt><dd>{{ interview.date or '-' }}</dd>
+            <dt>Type</dt><dd>{{ interview.type or '-' }}</dd>
+            <dt>Interviewer</dt><dd>{{ interview.interviewer or '-' }}</dd>
+            <dt>Notes</dt><dd class="pre">{{ interview.notes or '-' }}</dd>
+        </dl>
+        {% else %}
+        <p class="muted">No interview details recorded yet. Use Edit to add them.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

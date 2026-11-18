@@ -27,4 +27,23 @@
         <dd>{% for skill in job.skills %}<span class="tag">{{ skill }}</span>{% else %}-{% endfor %}</dd>
     </dl>
 </section>
+
+<section class="card">
+    <div class="card-head">
+        <h2>Applications for this job</h2>
+        <a class="btn btn-small" href="{{ url_for('application_add', job_id=job.job_id) }}">+ Add application</a>
+    </div>
+    {% if applications %}
+    <ul class="link-list">
+        {% for application in applications %}
+        <li>
+            <a href="{{ url_for('application_detail', application_id=application.application_id) }}">Applied {{ application.application_date }}</a>
+            <span class="badge status-{{ application.status | lower }}">{{ application.status }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">You have not applied to this job yet.</p>
+    {% endif %}
+</section>
 {% endblock %}
