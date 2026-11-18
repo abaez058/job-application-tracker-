@@ -9,6 +9,7 @@ Built with MySQL, Flask and HTML/CSS.
 git clone https://github.com/abaez058/job-application-tracker-.git
 cd job-application-tracker-
 pip install -r requirements.txt
+
 WINODWS
   cmd /c "mysql -u root -p < schema.sql"
 MAC
