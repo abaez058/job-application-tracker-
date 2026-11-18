@@ -4,8 +4,7 @@
 <a class="back" href="{{ url_for('jobs') }}">&larr; All jobs</a>
 <div class="page-head">
     <div>
-        <h1>{{ job.job_title }}</h1>
-        <p class="subtitle">at <a href="{{ url_for('company_detail', company_id=job.company_id) }}">{{ job.company_name }}</a></p>
+        <h1>{{ job.company_name }}</h1>
     </div>
     <div class="actions">
         <a class="btn" href="{{ url_for('job_edit', job_id=job.job_id) }}">Edit</a>
@@ -18,7 +17,8 @@
 
 <section class="card">
     <dl class="details">
-        <dt>Type</dt><dd>{{ job.job_type or '-' }}</dd>
+        <dt>Job</dt><dd>{{ job.job_title }}</dd>
+        <dt>Company</dt><dd>{{ job.company_name }}</dd>
         <dt>Salary</dt><dd>{% include "_salary.html" %}</dd>
         <dt>Date posted</dt><dd>{{ job.date_posted or '-' }}</dd>
         <dt>Posting</dt>
