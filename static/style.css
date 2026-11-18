@@ -2,13 +2,14 @@
    The theme colors are the variables in :root: change one and it updates everywhere. */
 
 :root {
-    --bg: #f4f6f9;
+    --bg: #FAF9F6;
     --surface: #ffffff;
-    --text: #1c2733;
-    --muted: #5b6876;
-    --border: #d9dfe7;
-    --primary: #1f5fa8;
-    --primary-dark: #17487f;
+    --text: #1B1F3B;
+    --muted: #5b6078;
+    --border: #e2e1dc;
+    --primary: #4169E1;
+    --primary-dark: #2a4fc0;
+    --accent: #FFA500;
     --danger: #b3261e;
     --success-bg: #e3f4e8;
     --success-text: #1c5a2e;
@@ -39,7 +40,7 @@ main.container { padding-top: 1.75rem; padding-bottom: 3rem; min-height: 70vh; }
 
 /* ---------- Header and navigation ---------- */
 
-.site-header { background: #17263a; color: #fff; }
+.site-header { background: #1B1F3B; color: #fff; }
 .header-inner {
     display: flex; flex-wrap: wrap; align-items: center;
     justify-content: space-between; gap: 0.5rem 1.5rem;
@@ -49,7 +50,7 @@ main.container { padding-top: 1.75rem; padding-bottom: 3rem; min-height: 70vh; }
 .brand:hover { color: #fff; }
 .main-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .main-nav a {
-    color: #c9d5e3; text-decoration: none;
+    color: #ffffff; text-decoration: none;
     padding: 0.4rem 0.75rem; border-radius: 6px;
 }
 .main-nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
@@ -90,7 +91,7 @@ main.container { padding-top: 1.75rem; padding-bottom: 3rem; min-height: 70vh; }
 .btn {
     display: inline-block; font: inherit; font-size: 0.95rem; cursor: pointer;
     padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none;
-    color: var(--text); background: var(--surface); border: 1px solid #b7c0cc;
+    color: var(--text); background: var(--surface); border: 1px solid #C0C0C0;
 }
 .btn:hover { background: #eef1f5; color: var(--text); }
 .btn-primary { color: #fff; background: var(--primary); border-color: var(--primary); }
@@ -134,12 +135,18 @@ section.card:not(.table-wrap) .table td:first-child { padding-left: 0; }
     display: inline-block; padding: 0.1rem 0.6rem; border-radius: 999px;
     font-size: 0.8rem; font-weight: 600; white-space: nowrap;
 }
-.status-applied   { background: #e1ecf9; color: #174a85; }
-.status-screening { background: #ece6f8; color: #4b2f8a; }
-.status-interview { background: #fdf0d3; color: #7a4d00; }
-.status-offer     { background: #dcf3e2; color: #1c5a2e; }
-.status-rejected  { background: #fbe3e1; color: #8c1d18; }
-.status-withdrawn { background: #e8ebef; color: #46515d; }
+/* Status colors. Things warm up as an application moves along:
+   Applied is a cool sky blue, Screening a deeper indigo, Interview is orange.
+   The final results use colors everyone already reads the same way:
+   green for an offer, red for a rejection, plain silver for withdrawn.
+   Every badge's text passes the 4.5:1 contrast check, and the dashboard
+   bars reuse these exact colors. */
+.status-applied   { background: #87CEEB; color: #1B1F3B; }
+.status-screening { background: #3A4BA8; color: #ffffff; }
+.status-interview { background: #FFA500; color: #1B1F3B; }
+.status-offer     { background: #1E7B50; color: #ffffff; }
+.status-rejected  { background: #C53030; color: #ffffff; }
+.status-withdrawn { background: #C0C0C0; color: #1B1F3B; }
 
 .tag {
     display: inline-block; margin: 0 0.25rem 0.25rem 0; padding: 0.05rem 0.5rem;
@@ -169,7 +176,7 @@ section.card:not(.table-wrap) .table td:first-child { padding-left: 0; }
 .field label, legend { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.3rem; }
 .field input:not([type="checkbox"]), .field select, .field textarea {
     width: 100%; font: inherit; color: var(--text); background: #fff;
-    padding: 0.5rem 0.65rem; border: 1px solid #aab4c0; border-radius: 6px;
+    padding: 0.5rem 0.65rem; border: 1px solid #C0C0C0; border-radius: 6px;
 }
 .field input:focus, .field select:focus, .field textarea:focus, .btn:focus-visible {
     outline: 2px solid var(--primary); outline-offset: 1px;
@@ -198,7 +205,7 @@ legend { padding: 0 0.4rem; }
     display: block; background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 1rem 1.25rem; text-decoration: none; color: var(--text);
 }
-a.stat:hover { border-color: var(--primary); color: var(--text); }
+a.stat:hover { border-color: var(--accent); color: var(--text); }
 .stat-value { display: block; font-size: 1.9rem; font-weight: 700; line-height: 1.2; }
 .stat-label { color: var(--muted); font-size: 0.9rem; }
 
@@ -206,7 +213,7 @@ a.stat:hover { border-color: var(--primary); color: var(--text); }
 .bar-list li { display: grid; grid-template-columns: 6.5rem 1fr 2rem; gap: 0.75rem; align-items: center; padding: 0.35rem 0; }
 .bar-name { text-decoration: none; }
 .bar-count { text-align: right; font-weight: 600; }
-.bar-track { display: block; height: 0.6rem; background: #e6eaef; border-radius: 999px; overflow: hidden; }
+.bar-track { display: block; height: 0.6rem; background: #EEEDEA; border-radius: 999px; overflow: hidden; }
 .bar-fill { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
 
 /* Headings that split the dashboard into its three phases */
@@ -214,16 +221,16 @@ a.stat:hover { border-color: var(--primary); color: var(--text); }
     font-size: 1.3rem;
     margin: 2rem 0 0.75rem;
     padding-bottom: 0.4rem;
-    border-bottom: 2px solid var(--border);
+    border-bottom: 2px solid var(--accent);
 }
 
 /* Each bar matches its status badge, so you only have to learn each color once */
-.bar-fill.fill-applied   { background: #3b78c2; }
-.bar-fill.fill-screening { background: #6a4bb5; }
-.bar-fill.fill-interview { background: #c98a12; }
-.bar-fill.fill-offer     { background: #2e8b4a; }
-.bar-fill.fill-rejected  { background: #c0392b; }
-.bar-fill.fill-withdrawn { background: #7a8592; }
+.bar-fill.fill-applied   { background: #87CEEB; }
+.bar-fill.fill-screening { background: #3A4BA8; }
+.bar-fill.fill-interview { background: #FFA500; }
+.bar-fill.fill-offer     { background: #1E7B50; }
+.bar-fill.fill-rejected  { background: #C53030; }
+.bar-fill.fill-withdrawn { background: #C0C0C0; }
 
 /* ---------- Job Match ---------- */
 
