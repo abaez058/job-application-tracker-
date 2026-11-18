@@ -1,23 +1,52 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
+
+{# ------------------------------------------------------------------
+   Reusable bar graph: one bar per status in "statuses".
+   Bar widths only compare within this graph, so the Outcomes bars
+   don't shrink just because there are lots of Interview ones.
+   ------------------------------------------------------------------ #}
+{% macro status_graph(title, statuses, counts) %}
+<section class="card">
+    <h2>{{ title }}</h2>
+    {% set ns = namespace(total=0) %}
+    {% for status in statuses %}{% set ns.total = ns.total + counts[status] %}{% endfor %}
+    <ul class="bar-list">
+        {% for status in statuses %}
+        <li>
+            <a class="bar-name" href="{{ url_for('applications', status=status) }}">{{ status }}</a>
+            <span class="bar-track">
+                <span class="bar-fill fill-{{ status | lower }}"
+                      style="width: {{ (counts[status] / ns.total * 100) | round | int if ns.total else 0 }}%"></span>
+            </span>
+            <span class="bar-count">{{ counts[status] }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endmacro %}
+
 <div class="page-head">
     <h1>Dashboard</h1>
     <a class="btn btn-primary" href="{{ url_for('application_add') }}">+ Add application</a>
 </div>
 
-<section class="stat-grid" aria-label="Totals">
-    <a class="stat" href="{{ url_for('applications') }}">
-        <span class="stat-value">{{ counts.applications }}</span>
-        <span class="stat-label">Applications</span>
+{# ============================ APPLICATION PHASE ============================ #}
+<h2 class="phase-title">Application Phase</h2>
+
+<section class="stat-grid" aria-label="Application phase totals">
+    <a class="stat" href="{{ url_for('companies') }}">
+        <span class="stat-value">{{ counts.companies }}</span>
+        <span class="stat-label">Companies</span>
     </a>
     <a class="stat" href="{{ url_for('jobs') }}">
         <span class="stat-value">{{ counts.jobs }}</span>
         <span class="stat-label">Jobs saved</span>
     </a>
-    <a class="stat" href="{{ url_for('companies') }}">
-        <span class="stat-value">{{ counts.companies }}</span>
-        <span class="stat-label">Companies</span>
+    <a class="stat" href="{{ url_for('applications') }}">
+        <span class="stat-value">{{ counts.applications }}</span>
+        <span class="stat-label">Applications</span>
     </a>
     <a class="stat" href="{{ url_for('contacts') }}">
         <span class="stat-value">{{ counts.contacts }}</span>
@@ -25,61 +54,69 @@
     </a>
 </section>
 
-<section class="stat-grid stat-grid-3" aria-label="Progress">
-    <div class="stat">
-        <span class="stat-value">{{ stats.active }}</span>
-        <span class="stat-label">Still in progress</span>
-    </div>
-    <div class="stat">
-        <span class="stat-value">{{ stats.offers }}</span>
-        <span class="stat-label">Offers</span>
-    </div>
+<section class="card">
+    <h2>Recent applications</h2>
+    {% if recent %}
+    <table class="table">
+        <thead>
+            <tr><th>Job</th><th>Applied</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+            {% for row in recent %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('application_detail', application_id=row.application_id) }}">{{ row.job_title }}</a>
+                    <div class="muted">{{ row.company_name }}</div>
+                </td>
+                <td>{{ row.application_date }}</td>
+                <td><span class="badge status-{{ row.status | lower }}">{{ row.status }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No applications yet. Add your first one to see it here.</p>
+    {% endif %}
+</section>
+
+{# ============================= INTERVIEW PHASE ============================= #}
+<h2 class="phase-title">Interview Phase</h2>
+
+<section class="stat-grid stat-grid-3" aria-label="Interview phase totals">
+    <a class="stat" href="{{ url_for('applications', status='Screening') }}">
+        <span class="stat-value">{{ status_counts['Screening'] }}</span>
+        <span class="stat-label">In screening</span>
+    </a>
+    <a class="stat" href="{{ url_for('applications', status='Interview') }}">
+        <span class="stat-value">{{ status_counts['Interview'] }}</span>
+        <span class="stat-label">Interviewing</span>
+    </a>
     <div class="stat">
         <span class="stat-value">{{ stats.response_rate }}%</span>
         <span class="stat-label">Response rate</span>
     </div>
 </section>
 
-<div class="two-col">
-    <section class="card">
-        <h2>Applications by status</h2>
-        {% set total = counts.applications %}
-        <ul class="bar-list">
-            {% for status, count in status_counts.items() %}
-            <li>
-                <a class="bar-name" href="{{ url_for('applications', status=status) }}">{{ status }}</a>
-                <span class="bar-track">
-                    <span class="bar-fill" style="width: {{ (count / total * 100) | round | int if total else 0 }}%"></span>
-                </span>
-                <span class="bar-count">{{ count }}</span>
-            </li>
-            {% endfor %}
-        </ul>
-    </section>
+{{ status_graph('Where your applications stand', ['Applied', 'Screening', 'Interview'], status_counts) }}
 
-    <section class="card">
-        <h2>Recent applications</h2>
-        {% if recent %}
-        <table class="table">
-            <thead>
-                <tr><th>Job</th><th>Applied</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-                {% for row in recent %}
-                <tr>
-                    <td>
-                        <a href="{{ url_for('application_detail', application_id=row.application_id) }}">{{ row.job_title }}</a>
-                        <div class="muted">{{ row.company_name }}</div>
-                    </td>
-                    <td>{{ row.application_date }}</td>
-                    <td><span class="badge status-{{ row.status | lower }}">{{ row.status }}</span></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="muted">No applications yet. Add your first one to see it here.</p>
-        {% endif %}
-    </section>
-</div>
+{# ================================= RESULTS ================================= #}
+<h2 class="phase-title">Results</h2>
+
+<section class="stat-grid stat-grid-3" aria-label="Results totals">
+    <a class="stat" href="{{ url_for('applications', status='Offer') }}">
+        <span class="stat-value">{{ status_counts['Offer'] }}</span>
+        <span class="stat-label">Offers</span>
+    </a>
+    <a class="stat" href="{{ url_for('applications', status='Rejected') }}">
+        <span class="stat-value">{{ status_counts['Rejected'] }}</span>
+        <span class="stat-label">Rejections</span>
+    </a>
+    <a class="stat" href="{{ url_for('applications', status='Withdrawn') }}">
+        <span class="stat-value">{{ status_counts['Withdrawn'] }}</span>
+        <span class="stat-label">Withdrawn</span>
+    </a>
+</section>
+
+{{ status_graph('Outcomes', ['Offer', 'Rejected', 'Withdrawn'], status_counts) }}
+
 {% endblock %}

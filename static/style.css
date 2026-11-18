@@ -209,6 +209,22 @@ a.stat:hover { border-color: var(--primary); color: var(--text); }
 .bar-track { display: block; height: 0.6rem; background: #e6eaef; border-radius: 999px; overflow: hidden; }
 .bar-fill { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
 
+/* Headings that split the dashboard into its three phases */
+.phase-title {
+    font-size: 1.3rem;
+    margin: 2rem 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid var(--border);
+}
+
+/* Each bar matches its status badge, so you only have to learn each color once */
+.bar-fill.fill-applied   { background: #3b78c2; }
+.bar-fill.fill-screening { background: #6a4bb5; }
+.bar-fill.fill-interview { background: #c98a12; }
+.bar-fill.fill-offer     { background: #2e8b4a; }
+.bar-fill.fill-rejected  { background: #c0392b; }
+.bar-fill.fill-withdrawn { background: #7a8592; }
+
 /* ---------- Job Match ---------- */
 
 .match-list { list-style: none; margin: 1rem 0; padding: 0; counter-reset: match; }
