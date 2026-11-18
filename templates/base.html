@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Job Tracker{% endblock %} - Job Application Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="brand" href="{{ url_for('dashboard') }}">Job Application Tracker</a>
+            <nav class="main-nav" aria-label="Main">
+                {# Each item: (what the current page's name starts with, where the link goes, the text shown) #}
+                {% set nav_items = [
+                    ('dashboard',   'dashboard',    'Dashboard')
+                ] %}
+                {% set current = request.endpoint or '' %}
+                {% for prefix, endpoint, label in nav_items %}
+                    {% if prefix == 'job' %}
+                        {% set active = current.startswith('job') and current != 'job_match' %}
+                    {% else %}
+                        {% set active = current.startswith(prefix) %}
+                    {% endif %}
+                    <a href="{{ url_for(endpoint) }}" {% if active %}class="active" aria-current="page"{% endif %}>{{ label }}</a>
+                {% endfor %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}" role="status">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        {% if errors %}
+            <div class="alert alert-error" role="alert">
+                <strong>Please fix the following:</strong>
+                <ul>
+                    {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">COP4751 Course Project &middot; Flask + MySQL</div>
+    </footer>
+
+    <script>
+        // Every delete form has a data-confirm message, so ask before deleting anything.
+        document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!window.confirm(form.dataset.confirm)) {
+                    event.preventDefault();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
