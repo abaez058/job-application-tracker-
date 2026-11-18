@@ -18,10 +18,6 @@ MAC
 ```bash
   mysql -u root -p < schema.sql
 ```
-
-
-On Windows PowerShell, load the database with `cmd /c "mysql -u root -p < schema.sql"`.
-
 ## Run
 WINDOWS
 ```bash
