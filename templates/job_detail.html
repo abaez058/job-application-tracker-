@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ job.job_title }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('jobs') }}">&larr; All jobs</a>
+<div class="page-head">
+    <div>
+        <h1>{{ job.job_title }}</h1>
+        <p class="subtitle">at <a href="{{ url_for('company_detail', company_id=job.company_id) }}">{{ job.company_name }}</a></p>
+    </div>
+    <div class="actions">
+        <a class="btn" href="{{ url_for('job_edit', job_id=job.job_id) }}">Edit</a>
+        <form method="post" action="{{ url_for('job_delete', job_id=job.job_id) }}"
+              data-confirm="Delete {{ job.job_title }} at {{ job.company_name }}? This also deletes its applications.">
+            <button class="btn btn-danger" type="submit">Delete</button>
+        </form>
+    </div>
+</div>
+
+<section class="card">
+    <dl class="details">
+        <dt>Type</dt><dd>{{ job.job_type or '-' }}</dd>
+        <dt>Salary</dt><dd>{% include "_salary.html" %}</dd>
+        <dt>Date posted</dt><dd>{{ job.date_posted or '-' }}</dd>
+        <dt>Posting</dt>
+        <dd>{% if job.job_url %}<a href="{{ job.job_url }}" target="_blank" rel="noopener">{{ job.job_url }}</a>{% else %}-{% endif %}</dd>
+        <dt>Required skills</dt>
+        <dd>{% for skill in job.skills %}<span class="tag">{{ skill }}</span>{% else %}-{% endfor %}</dd>
+    </dl>
+</section>
+{% endblock %}

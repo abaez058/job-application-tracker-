@@ -1,0 +1,10 @@
+{#- Prints a job's salary range nicely. Needs a variable called "job". -#}
+{%- if job.salary_min is not none and job.salary_max is not none -%}
+    ${{ '{:,}'.format(job.salary_min) }} - ${{ '{:,}'.format(job.salary_max) }}
+{%- elif job.salary_min is not none -%}
+    From ${{ '{:,}'.format(job.salary_min) }}
+{%- elif job.salary_max is not none -%}
+    Up to ${{ '{:,}'.format(job.salary_max) }}
+{%- else -%}
+    -
+{%- endif -%}

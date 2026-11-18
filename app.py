@@ -3,6 +3,7 @@
 Every page in the app is set up in this file:
     /                Dashboard (statistics overview)
     /companies       Companies    - list / detail / add / edit / delete
+    /jobs            Jobs         - list / detail / add / edit / delete
     /contacts        Contacts     - list / detail / add / edit / delete
 """
 
@@ -241,6 +242,128 @@ def company_delete(company_id):
     execute("DELETE FROM companies WHERE company_id = %s", (company_id,))
     flash(f"Company \"{company['company_name']}\" deleted.", "success")
     return redirect(url_for("companies"))
+
+
+# ---------------------------------------------------------------------------
+# Jobs
+# ---------------------------------------------------------------------------
+
+JOB_SELECT = """SELECT j.*, c.company_name
+                FROM jobs j JOIN companies c ON c.company_id = j.company_id"""
+
+
+def validate_job(form):
+    """Check the job form. Gives back the cleaned-up values and a list of problems."""
+    errors = []
+    data = {
+        "job_title": clean(form, "job_title"),
+        "job_type": clean(form, "job_type"),
+        "job_url": clean(form, "job_url"),
+    }
+
+    company_id = clean(form, "company_id")
+    if not company_id or not company_id.isdigit() or not company_exists(int(company_id)):
+        errors.append("Please choose a company.")
+        data["company_id"] = None
+    else:
+        data["company_id"] = int(company_id)
+
+    if not data["job_title"]:
+        errors.append("Job title is required.")
+    check_length(errors, "Job title", data["job_title"], 100)
+
+    if data["job_type"] and data["job_type"] not in JOB_TYPES:
+        errors.append("Job type is not one of the allowed options.")
+
+    data["salary_min"] = parse_salary(errors, "Minimum salary", clean(form, "salary_min"))
+    data["salary_max"] = parse_salary(errors, "Maximum salary", clean(form, "salary_max"))
+    if (data["salary_min"] is not None and data["salary_max"] is not None
+            and data["salary_min"] > data["salary_max"]):
+        errors.append("Minimum salary cannot be greater than maximum salary.")
+
+    check_length(errors, "Job URL", data["job_url"], 300)
+    check_url(errors, "Job URL", data["job_url"])
+    data["date_posted"] = parse_date(errors, "Date posted", clean(form, "date_posted"))
+
+    # People type skills as 'Python, SQL', but they're stored as a JSON list.
+    skills = parse_skills(form.get("requirements_text"))
+    data["requirements"] = json.dumps(skills) if skills else None
+    return data, errors
+
+
+@app.route("/jobs")
+def jobs():
+    rows = query_all(JOB_SELECT + " ORDER BY j.date_posted DESC, j.job_id DESC")
+    for job in rows:
+        job["skills"] = job_skills(job)
+    return render_template("jobs.html", jobs=rows)
+
+
+@app.route("/jobs/<int:job_id>")
+def job_detail(job_id):
+    job = get_or_404(JOB_SELECT + " WHERE j.job_id = %s", job_id)
+    job["skills"] = job_skills(job)
+    job_applications = query_all(
+        "SELECT * FROM applications WHERE job_id = %s ORDER BY application_date DESC", (job_id,))
+    return render_template("job_detail.html", job=job, applications=job_applications)
+
+
+@app.route("/jobs/add", methods=["GET", "POST"])
+def job_add():
+    if request.method == "POST":
+        data, errors = validate_job(request.form)
+        if not errors:
+            execute(
+                """INSERT INTO jobs (company_id, job_title, job_type, salary_min, salary_max,
+                                     job_url, date_posted, requirements)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                (data["company_id"], data["job_title"], data["job_type"], data["salary_min"],
+                 data["salary_max"], data["job_url"], data["date_posted"], data["requirements"]),
+            )
+            flash(f"Job \"{data['job_title']}\" added.", "success")
+            return redirect(url_for("jobs"))
+        form = request.form
+    else:
+        # Coming from a company page? Pre-select that company in the dropdown.
+        form = {"company_id": request.args.get("company_id", "")}
+        errors = []
+    return render_template("job_form.html", form=form, errors=errors, job=None,
+                           companies=company_choices(), job_types=JOB_TYPES)
+
+
+@app.route("/jobs/<int:job_id>/edit", methods=["GET", "POST"])
+def job_edit(job_id):
+    job = get_or_404(JOB_SELECT + " WHERE j.job_id = %s", job_id)
+    if request.method == "POST":
+        data, errors = validate_job(request.form)
+        if not errors:
+            execute(
+                """UPDATE jobs
+                   SET company_id = %s, job_title = %s, job_type = %s, salary_min = %s,
+                       salary_max = %s, job_url = %s, date_posted = %s, requirements = %s
+                   WHERE job_id = %s""",
+                (data["company_id"], data["job_title"], data["job_type"], data["salary_min"],
+                 data["salary_max"], data["job_url"], data["date_posted"], data["requirements"],
+                 job_id),
+            )
+            flash(f"Job \"{data['job_title']}\" updated.", "success")
+            return redirect(url_for("job_detail", job_id=job_id))
+        form = request.form
+    else:
+        form = dict(job)
+        form["requirements_text"] = ", ".join(job_skills(job))
+        errors = []
+    return render_template("job_form.html", form=form, errors=errors, job=job,
+                           companies=company_choices(), job_types=JOB_TYPES)
+
+
+@app.route("/jobs/<int:job_id>/delete", methods=["POST"])
+def job_delete(job_id):
+    job = get_or_404(JOB_SELECT + " WHERE j.job_id = %s", job_id)
+    # This cascades too: any applications for this job go with it.
+    execute("DELETE FROM jobs WHERE job_id = %s", (job_id,))
+    flash(f"Job \"{job['job_title']}\" deleted.", "success")
+    return redirect(url_for("jobs"))
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Jobs{% endblock %}
+{% block content %}
+<div class="page-head">
+    <h1>Jobs</h1>
+    <a class="btn btn-primary" href="{{ url_for('job_add') }}">+ Add job</a>
+</div>
+
+{% if jobs %}
+<div class="card table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Job</th><th>Type</th><th>Salary</th><th>Posted</th><th>Required skills</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('job_detail', job_id=job.job_id) }}">{{ job.job_title }}</a>
+                    <div class="muted">{{ job.company_name }}</div>
+                </td>
+                <td>{{ job.job_type or '-' }}</td>
+                <td class="nowrap">{% include "_salary.html" %}</td>
+                <td class="nowrap">{{ job.date_posted or '-' }}</td>
+                <td>
+                    {% for skill in job.skills %}<span class="tag">{{ skill }}</span>{% else %}-{% endfor %}
+                </td>
+                <td class="actions">
+                    <a class="btn btn-small" href="{{ url_for('job_edit', job_id=job.job_id) }}">Edit</a>
+                    <form method="post" action="{{ url_for('job_delete', job_id=job.job_id) }}"
+                          data-confirm="Delete {{ job.job_title }} at {{ job.company_name }}? This also deletes its applications.">
+                        <button class="btn btn-small btn-danger" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card empty">
+    <p>No jobs yet.</p>
+    <a class="btn btn-primary" href="{{ url_for('job_add') }}">Add your first job</a>
+</div>
+{% endif %}
+{% endblock %}
