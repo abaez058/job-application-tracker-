@@ -42,3 +42,4 @@ https://youtu.be/8jBaAIR0pxA
 - Python 3
 - MySQL Server
 - Git
+- Python packages (Flask, mysql-connector-python)
