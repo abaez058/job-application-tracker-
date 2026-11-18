@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ company.company_name }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('companies') }}">&larr; All companies</a>
+<div class="page-head">
+    <h1>{{ company.company_name }}</h1>
+    <div class="actions">
+        <a class="btn" href="{{ url_for('company_edit', company_id=company.company_id) }}">Edit</a>
+        <form method="post" action="{{ url_for('company_delete', company_id=company.company_id) }}"
+              data-confirm="Delete {{ company.company_name }}? This also deletes its jobs, applications and contacts.">
+            <button class="btn btn-danger" type="submit">Delete</button>
+        </form>
+    </div>
+</div>
+
+<section class="card">
+    <dl class="details">
+        <dt>Industry</dt><dd>{{ company.industry or '-' }}</dd>
+        <dt>Website</dt>
+        <dd>{% if company.website %}<a href="{{ company.website }}" target="_blank" rel="noopener">{{ company.website }}</a>{% else %}-{% endif %}</dd>
+        <dt>Location</dt><dd>{{ [company.city, company.state] | select | join(', ') or '-' }}</dd>
+        <dt>Notes</dt><dd class="pre">{{ company.notes or '-' }}</dd>
+    </dl>
+</section>
+{% endblock %}

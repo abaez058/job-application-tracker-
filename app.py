@@ -2,6 +2,7 @@
 
 Every page in the app is set up in this file:
     /                Dashboard (statistics overview)
+    /companies       Companies    - list / detail / add / edit / delete
 """
 
 import json
@@ -148,6 +149,97 @@ def dashboard():
                   (SELECT COUNT(*) FROM contacts)     AS contacts"""
     )
     return render_template("dashboard.html", counts=counts)
+
+
+# ---------------------------------------------------------------------------
+# Companies
+# ---------------------------------------------------------------------------
+
+def validate_company(form):
+    """Check the company form. Gives back the cleaned-up values and a list of problems."""
+    errors = []
+    data = {field: clean(form, field)
+            for field in ("company_name", "industry", "website", "city", "state", "notes")}
+
+    if not data["company_name"]:
+        errors.append("Company name is required.")
+    check_length(errors, "Company name", data["company_name"], 100)
+    check_length(errors, "Industry", data["industry"], 50)
+    check_length(errors, "Website", data["website"], 200)
+    check_length(errors, "City", data["city"], 50)
+    check_length(errors, "State", data["state"], 50)
+    check_url(errors, "Website", data["website"])
+    return data, errors
+
+
+@app.route("/companies")
+def companies():
+    rows = query_all(
+        """SELECT c.*,
+                  (SELECT COUNT(*) FROM jobs j     WHERE j.company_id = c.company_id) AS job_count,
+                  (SELECT COUNT(*) FROM contacts t WHERE t.company_id = c.company_id) AS contact_count
+           FROM companies c
+           ORDER BY c.company_name"""
+    )
+    return render_template("companies.html", companies=rows)
+
+
+@app.route("/companies/<int:company_id>")
+def company_detail(company_id):
+    company = get_or_404("SELECT * FROM companies WHERE company_id = %s", company_id)
+    jobs_here = query_all(
+        "SELECT * FROM jobs WHERE company_id = %s ORDER BY date_posted DESC", (company_id,))
+    contacts_here = query_all(
+        "SELECT * FROM contacts WHERE company_id = %s ORDER BY contact_name", (company_id,))
+    return render_template("company_detail.html", company=company,
+                           jobs=jobs_here, contacts=contacts_here)
+
+
+@app.route("/companies/add", methods=["GET", "POST"])
+def company_add():
+    if request.method == "POST":
+        data, errors = validate_company(request.form)
+        if not errors:
+            execute(
+                """INSERT INTO companies (company_name, industry, website, city, state, notes)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (data["company_name"], data["industry"], data["website"],
+                 data["city"], data["state"], data["notes"]),
+            )
+            flash(f"Company \"{data['company_name']}\" added.", "success")
+            return redirect(url_for("companies"))
+        return render_template("company_form.html", form=request.form, errors=errors, company=None)
+    return render_template("company_form.html", form={}, errors=[], company=None)
+
+
+@app.route("/companies/<int:company_id>/edit", methods=["GET", "POST"])
+def company_edit(company_id):
+    company = get_or_404("SELECT * FROM companies WHERE company_id = %s", company_id)
+    if request.method == "POST":
+        data, errors = validate_company(request.form)
+        if not errors:
+            execute(
+                """UPDATE companies
+                   SET company_name = %s, industry = %s, website = %s,
+                       city = %s, state = %s, notes = %s
+                   WHERE company_id = %s""",
+                (data["company_name"], data["industry"], data["website"],
+                 data["city"], data["state"], data["notes"], company_id),
+            )
+            flash(f"Company \"{data['company_name']}\" updated.", "success")
+            return redirect(url_for("company_detail", company_id=company_id))
+        return render_template("company_form.html", form=request.form, errors=errors, company=company)
+    return render_template("company_form.html", form=company, errors=[], company=company)
+
+
+@app.route("/companies/<int:company_id>/delete", methods=["POST"])
+def company_delete(company_id):
+    company = get_or_404("SELECT * FROM companies WHERE company_id = %s", company_id)
+    # The foreign keys cascade, so this also removes the company's jobs, their
+    # applications, and its contacts. The confirm box warns about that first.
+    execute("DELETE FROM companies WHERE company_id = %s", (company_id,))
+    flash(f"Company \"{company['company_name']}\" deleted.", "success")
+    return redirect(url_for("companies"))
 
 
 # ---------------------------------------------------------------------------

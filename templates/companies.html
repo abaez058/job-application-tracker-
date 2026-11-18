@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Companies{% endblock %}
+{% block content %}
+<div class="page-head">
+    <h1>Companies</h1>
+    <a class="btn btn-primary" href="{{ url_for('company_add') }}">+ Add company</a>
+</div>
+
+{% if companies %}
+<div class="card table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Company</th><th>Industry</th><th>Location</th>
+                <th class="num">Jobs</th><th class="num">Contacts</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for company in companies %}
+            <tr>
+                <td><a href="{{ url_for('company_detail', company_id=company.company_id) }}">{{ company.company_name }}</a></td>
+                <td>{{ company.industry or '-' }}</td>
+                <td>{{ [company.city, company.state] | select | join(', ') or '-' }}</td>
+                <td class="num">{{ company.job_count }}</td>
+                <td class="num">{{ company.contact_count }}</td>
+                <td class="actions">
+                    <a class="btn btn-small" href="{{ url_for('company_edit', company_id=company.company_id) }}">Edit</a>
+                    <form method="post" action="{{ url_for('company_delete', company_id=company.company_id) }}"
+                          data-confirm="Delete {{ company.company_name }}? This also deletes its jobs, applications and contacts.">
+                        <button class="btn btn-small btn-danger" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card empty">
+    <p>No companies yet.</p>
+    <a class="btn btn-primary" href="{{ url_for('company_add') }}">Add your first company</a>
+</div>
+{% endif %}
+{% endblock %}
