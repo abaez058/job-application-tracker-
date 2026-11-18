@@ -14,7 +14,8 @@
                 {# Each item: (what the current page's name starts with, where the link goes, the text shown) #}
                 {% set nav_items = [
                     ('dashboard',   'dashboard',    'Dashboard'),
-                    ('compan',      'companies',    'Companies')
+                    ('compan',      'companies',    'Companies'),
+                    ('contact',     'contacts',     'Contacts')
                 ] %}
                 {% set current = request.endpoint or '' %}
                 {% for prefix, endpoint, label in nav_items %}

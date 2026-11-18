@@ -3,6 +3,7 @@
 Every page in the app is set up in this file:
     /                Dashboard (statistics overview)
     /companies       Companies    - list / detail / add / edit / delete
+    /contacts        Contacts     - list / detail / add / edit / delete
 """
 
 import json
@@ -240,6 +241,107 @@ def company_delete(company_id):
     execute("DELETE FROM companies WHERE company_id = %s", (company_id,))
     flash(f"Company \"{company['company_name']}\" deleted.", "success")
     return redirect(url_for("companies"))
+
+
+# ---------------------------------------------------------------------------
+# Contacts
+# ---------------------------------------------------------------------------
+
+CONTACT_SELECT = """SELECT t.*, c.company_name
+                    FROM contacts t JOIN companies c ON c.company_id = t.company_id"""
+
+
+def validate_contact(form):
+    """Check the contact form. Gives back the cleaned-up values and a list of problems."""
+    errors = []
+    data = {field: clean(form, field)
+            for field in ("contact_name", "title", "email", "phone", "linkedin_url", "notes")}
+
+    company_id = clean(form, "company_id")
+    if not company_id or not company_id.isdigit() or not company_exists(int(company_id)):
+        errors.append("Please choose a company.")
+        data["company_id"] = None
+    else:
+        data["company_id"] = int(company_id)
+
+    if not data["contact_name"]:
+        errors.append("Contact name is required.")
+    check_length(errors, "Contact name", data["contact_name"], 100)
+    check_length(errors, "Title", data["title"], 100)
+    check_length(errors, "Email", data["email"], 100)
+    check_length(errors, "Phone", data["phone"], 20)
+    check_length(errors, "LinkedIn URL", data["linkedin_url"], 200)
+
+    if data["email"] and not EMAIL_PATTERN.match(data["email"]):
+        errors.append("Email does not look like a valid address.")
+    check_url(errors, "LinkedIn URL", data["linkedin_url"])
+    return data, errors
+
+
+@app.route("/contacts")
+def contacts():
+    rows = query_all(CONTACT_SELECT + " ORDER BY t.contact_name")
+    return render_template("contacts.html", contacts=rows)
+
+
+@app.route("/contacts/<int:contact_id>")
+def contact_detail(contact_id):
+    contact = get_or_404(CONTACT_SELECT + " WHERE t.contact_id = %s", contact_id)
+    return render_template("contact_detail.html", contact=contact)
+
+
+@app.route("/contacts/add", methods=["GET", "POST"])
+def contact_add():
+    if request.method == "POST":
+        data, errors = validate_contact(request.form)
+        if not errors:
+            execute(
+                """INSERT INTO contacts (company_id, contact_name, title, email, phone,
+                                         linkedin_url, notes)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                (data["company_id"], data["contact_name"], data["title"], data["email"],
+                 data["phone"], data["linkedin_url"], data["notes"]),
+            )
+            flash(f"Contact \"{data['contact_name']}\" added.", "success")
+            return redirect(url_for("contacts"))
+        form = request.form
+    else:
+        form = {"company_id": request.args.get("company_id", "")}
+        errors = []
+    return render_template("contact_form.html", form=form, errors=errors, contact=None,
+                           companies=company_choices())
+
+
+@app.route("/contacts/<int:contact_id>/edit", methods=["GET", "POST"])
+def contact_edit(contact_id):
+    contact = get_or_404(CONTACT_SELECT + " WHERE t.contact_id = %s", contact_id)
+    if request.method == "POST":
+        data, errors = validate_contact(request.form)
+        if not errors:
+            execute(
+                """UPDATE contacts
+                   SET company_id = %s, contact_name = %s, title = %s, email = %s,
+                       phone = %s, linkedin_url = %s, notes = %s
+                   WHERE contact_id = %s""",
+                (data["company_id"], data["contact_name"], data["title"], data["email"],
+                 data["phone"], data["linkedin_url"], data["notes"], contact_id),
+            )
+            flash(f"Contact \"{data['contact_name']}\" updated.", "success")
+            return redirect(url_for("contact_detail", contact_id=contact_id))
+        form = request.form
+    else:
+        form = contact
+        errors = []
+    return render_template("contact_form.html", form=form, errors=errors, contact=contact,
+                           companies=company_choices())
+
+
+@app.route("/contacts/<int:contact_id>/delete", methods=["POST"])
+def contact_delete(contact_id):
+    contact = get_or_404("SELECT * FROM contacts WHERE contact_id = %s", contact_id)
+    execute("DELETE FROM contacts WHERE contact_id = %s", (contact_id,))
+    flash(f"Contact \"{contact['contact_name']}\" deleted.", "success")
+    return redirect(url_for("contacts"))
 
 
 # ---------------------------------------------------------------------------

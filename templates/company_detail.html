@@ -22,4 +22,25 @@
         <dt>Notes</dt><dd class="pre">{{ company.notes or '-' }}</dd>
     </dl>
 </section>
+
+<div class="two-col">
+    <section class="card">
+        <div class="card-head">
+            <h2>Contacts</h2>
+            <a class="btn btn-small" href="{{ url_for('contact_add', company_id=company.company_id) }}">+ Add contact</a>
+        </div>
+        {% if contacts %}
+        <ul class="link-list">
+            {% for contact in contacts %}
+            <li>
+                <a href="{{ url_for('contact_detail', contact_id=contact.contact_id) }}">{{ contact.contact_name }}</a>
+                <span class="muted">{{ contact.title or '' }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">No contacts saved for this company.</p>
+        {% endif %}
+    </section>
+</div>
 {% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Contacts{% endblock %}
+{% block content %}
+<div class="page-head">
+    <h1>Contacts</h1>
+    <a class="btn btn-primary" href="{{ url_for('contact_add') }}">+ Add contact</a>
+</div>
+
+{% if contacts %}
+<div class="card table-wrap">
+    <table class="table">
+        <thead>
+            <tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            {% for contact in contacts %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('contact_detail', contact_id=contact.contact_id) }}">{{ contact.contact_name }}</a>
+                    <div class="muted">{{ contact.title or '' }}</div>
+                </td>
+                <td><a href="{{ url_for('company_detail', company_id=contact.company_id) }}">{{ contact.company_name }}</a></td>
+                <td>{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% else %}-{% endif %}</td>
+                <td class="nowrap">{{ contact.phone or '-' }}</td>
+                <td class="actions">
+                    <a class="btn btn-small" href="{{ url_for('contact_edit', contact_id=contact.contact_id) }}">Edit</a>
+                    <form method="post" action="{{ url_for('contact_delete', contact_id=contact.contact_id) }}"
+                          data-confirm="Delete the contact {{ contact.contact_name }}?">
+                        <button class="btn btn-small btn-danger" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card empty">
+    <p>No contacts yet.</p>
+    <a class="btn btn-primary" href="{{ url_for('contact_add') }}">Add your first contact</a>
+</div>
+{% endif %}
+{% endblock %}
