@@ -56,14 +56,38 @@
         <div class="container">COP4751 Course Project &middot; Flask + MySQL</div>
     </footer>
 
+        <dialog id="confirm-dialog" class="confirm-dialog">
+        <p id="confirm-message"></p>
+        <div class="form-actions">
+            <button type="button" class="btn btn-confirm-yes" id="confirm-yes">Yes</button>
+            <button type="button" class="btn" id="confirm-no">No</button>
+        </div>
+    </dialog>
+
     <script>
-        // Every delete form has a data-confirm message, so ask before deleting anything.
+        const confirmDialog = document.getElementById('confirm-dialog');
+        const confirmMessage = document.getElementById('confirm-message');
+        let pendingForm = null;
+
         document.querySelectorAll('form[data-confirm]').forEach(function (form) {
             form.addEventListener('submit', function (event) {
-                if (!window.confirm(form.dataset.confirm)) {
-                    event.preventDefault();
-                }
+                event.preventDefault();
+                pendingForm = form;
+                confirmMessage.textContent = form.dataset.confirm;
+                confirmDialog.showModal();
             });
+        });
+
+        document.getElementById('confirm-yes').addEventListener('click', function () {
+            confirmDialog.close();
+            if (pendingForm) {
+                pendingForm.submit();
+            }
+        });
+
+        document.getElementById('confirm-no').addEventListener('click', function () {
+            confirmDialog.close();
+            pendingForm = null;
         });
     </script>
 </body>
